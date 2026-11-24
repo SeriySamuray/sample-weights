@@ -152,7 +152,9 @@ def weighted_corr(data: pd.DataFrame, w: np.ndarray, domain: np.ndarray, how: st
         how += ", rows independent"
     q = stats.t.ppf(0.975, df)
     z, se_z = np.arctanh(r), se / (1 - r ** 2)  # Fisher-z interval with the t quantile
-    return Result(label, how, r, se, df, n, float(2 * stats.t.sf(abs(r / se), df)),
+    # Use the interval's scale so the two-sided test and confidence interval agree.
+    p = float(2 * stats.t.sf(abs(z / se_z), df))
+    return Result(label, how, r, se, df, n, p,
                   float(np.tanh(z - q * se_z)), float(np.tanh(z + q * se_z)), group,
                   (x[ok], y[ok], wk[ok]))
 
