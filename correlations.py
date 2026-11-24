@@ -19,7 +19,8 @@ Rules every weighted analysis follows (NCHS analytic guidelines):
    resemble each other, so the SE comes from PSU totals within strata (Taylor linearisation),
    with df = PSUs - strata (15 per survey), not n - 2.
 4. Filters are domains. Rows outside the subgroup get zero weight but stay in the design, so no
-   PSU or stratum is lost. Deleting rows before computing the SE is a mistake.
+   PSU or stratum is lost. Deleting rows before computing the SE is a mistake. The df, however,
+   counts only PSUs and strata that hold analysed rows (NHANES tutorial "Reliability of estimates").
 
 The naive twin ignores all four: no weights, rows independent, df = n - 2 (scipy.stats.pearsonr).
 It also keeps rows with a glucose value but zero fasting weight, so its n is larger.
@@ -114,6 +115,15 @@ def design_se(infl: np.ndarray, strata: np.ndarray, psu: np.ndarray) -> tuple[fl
     return float(np.sqrt(var)), int(keep.sum() - (by_h.size() > 1).sum())
 
 
+def domain_df(rows: pd.DataFrame) -> int:
+    """df of a domain estimate: PSUs with analysed rows - strata with analysed rows.
+
+    NHANES tutorial "Reliability of estimates": a subgroup absent from some PSUs or strata has
+    fewer df than the full design. Equals PSUs - strata when the domain reaches every PSU.
+    """
+    return rows.groupby([SURVEY, STRATA, PSU]).ngroups - rows.groupby([SURVEY, STRATA]).ngroups
+
+
 def weighted_corr(data: pd.DataFrame, w: np.ndarray, domain: np.ndarray, how: str,
                   label: str = "weighted", group: str = "All", design: bool = True) -> Result:
     """Weighted Pearson r over the domain, with the design-based SE (rules 1-4).
@@ -133,7 +143,9 @@ def weighted_corr(data: pd.DataFrame, w: np.ndarray, domain: np.ndarray, how: st
     infl = wk * (zx * zy - 0.5 * r * (zx ** 2 + zy ** 2)) / W  # how much each row moves r
     n = int(ok.sum())
     if design:
-        se, df = design_se(infl, data[STRATA].to_numpy(), data[PSU].to_numpy())
+        se = design_se(infl, data[STRATA].to_numpy(), data[PSU].to_numpy())[0]
+        # NHANES counts only PSUs and strata represented in the analytic domain for inference.
+        df = domain_df(data[ok])
         how += ", strata + PSU"
     else:
         se, df = design_se(infl, np.zeros(len(data)), np.arange(len(data)))[0], n - 1
@@ -349,7 +361,8 @@ def case_9_ethnicity_filter() -> None:
     """Filter by ethnicity (Mexican American), analysed as a domain (rule 4).
 
     Mexican Americans are absent from some PSUs. Deleting the other rows first drops those
-    PSUs, strata left with one PSU add no variance: the SE shrinks and df falls from 15 to 11.
+    PSUs, strata left with one PSU add no variance: the SE shrinks (0.0280 -> 0.0264). In both,
+    df = 22 PSUs - 13 strata holding analysed Mexican American adults = 9, not 15 (rule 4).
     """
     _filtered(9, "ethnicity_filter", "filtered by ethnicity (Mexican American)",
               "Mexican American", lambda d: d[ETHNICITY] == 1)

@@ -51,7 +51,7 @@ uv run python correlations.py
 |   | difference | | 0.034 / 0.0447 / 30 | 0.031 |
 | 7 | Pre + post COVID, pooled, weight / 2 | 2017-18, 2021-23 | 0.178 / 0.0222 / 30 / 5,149 | 0.166 / 5,521 |
 | 8 | Filter age 30+ (rows deleted first: same) | 2017-18 | 0.199 / 0.0393 / 15 / 1,921 | 0.184 / 2,032 |
-| 9 | Filter Mexican American (rows deleted first: SE 0.0264, df 11) | 2017-18 | 0.151 / 0.0280 / 15 / 325 | 0.142 / 334 |
+| 9 | Filter Mexican American (rows deleted first: SE 0.0264) | 2017-18 | 0.151 / 0.0280 / 9 / 325 | 0.142 / 334 |
 
 ## Review questions
 
