@@ -91,7 +91,7 @@ class Result:
     how: str        # weight and variance used
     r: float
     se: float
-    df: int
+    df: int | float
     n: int
     p: float
     lo: float       # 95% CI
@@ -172,8 +172,12 @@ def naive_corr(data: pd.DataFrame, domain: np.ndarray, group: str = "All") -> Re
 
 
 def difference(a: Result, b: Result) -> Result:
-    """r of a minus r of b, for two independent samples (two surveys): variances and df add."""
-    d, se, df = a.r - b.r, float(np.hypot(a.se, b.se)), a.df + b.df
+    """Difference of independent correlations with Welch–Satterthwaite degrees of freedom."""
+    d = a.r - b.r
+    var_a, var_b = a.se ** 2, b.se ** 2
+    se = float(np.hypot(a.se, b.se))
+    # Match effective df to the two independent estimated variance components.
+    df = (var_a + var_b) ** 2 / (var_a ** 2 / a.df + var_b ** 2 / b.df)
     q = stats.t.ppf(0.975, df)
     return Result(a.label, a.how, d, se, df, a.n + b.n, float(2 * stats.t.sf(abs(d / se), df)),
                   d - q * se, d + q * se, f"{a.group} minus {b.group}")
@@ -189,7 +193,7 @@ STYLE = {"weighted": ("C0", "-"), "naive": ("C3", "-"), "mistake": ("C1", "--"),
 def _line(res: Result) -> str:
     name = "difference in r" if res.xy is None else "r"
     return (f"{name} = {res.r:+.3f} (95% CI {res.lo:+.3f} to {res.hi:+.3f}), SE = {res.se:.4f}, "
-            f"p = {res.p:.2g}, n = {res.n:,}, df = {res.df:,}")
+            f"p = {res.p:.2g}, n = {res.n:,}, df = {res.df:,.1f}".removesuffix(".0"))
 
 
 def show(case: int, name: str, title: str, surveys: list[str], panels: list[list[Result]],
